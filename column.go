@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"log"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +18,7 @@ type column struct {
 	list   list.Model
 	height int
 	width  int
+	tasks  []Task
 }
 
 func (c *column) Focus() {
@@ -29,24 +33,19 @@ func (c *column) Focused() bool {
 	return c.focus
 }
 
-func newColumn(status status) column {
-	var focus bool
-	if status == todo {
-		focus = true
-	}
-	defaultList := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+func newColumn(items []list.Item, status status, focus bool) column {
+	defaultList := list.New(items, list.NewDefaultDelegate(), 0, 0)
 	defaultList.SetShowHelp(false)
 	return column{focus: focus, status: status, list: defaultList}
 }
 
-// Init does initial setup for the column.
 func (c column) Init() tea.Cmd {
 	return nil
 }
 
-// Update handles all the I/O for columns.
 func (c column) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	var err error
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		c.setSize(msg.Width, msg.Height)
@@ -56,7 +55,7 @@ func (c column) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Edit):
 			if len(c.list.VisibleItems()) != 0 {
 				task := c.list.SelectedItem().(Task)
-				f := NewForm(task.title, task.description)
+				f := NewForm(db, task.TaskTitle, task.TaskDescription)
 				f.index = c.list.Index()
 				f.col = c
 				return f.Update(nil)
@@ -67,7 +66,11 @@ func (c column) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			f.col = c
 			return f.Update(nil)
 		case key.Matches(msg, keys.Delete):
-			return c, c.DeleteCurrent()
+			cmd, err = c.DeleteCurrent()
+			if err != nil {
+				log.Fatal(err)
+			}
+			return c, cmd
 		case key.Matches(msg, keys.Enter):
 			return c, c.MoveToNext()
 		}
@@ -80,14 +83,22 @@ func (c column) View() string {
 	return c.getStyle().Render(c.list.View())
 }
 
-func (c *column) DeleteCurrent() tea.Cmd {
-	if len(c.list.VisibleItems()) > 0 {
-		c.list.RemoveItem(c.list.Index())
-	}
+func (c *column) DeleteCurrent() (tea.Cmd, error) {
+	i := c.list.Index()
 
-	var cmd tea.Cmd
-	c.list, cmd = c.list.Update(nil)
-	return cmd
+	if i >= 0 && i < len(c.tasks) {
+		taskID := c.tasks[i].ID
+		if err := delTask(db, taskID); err != nil {
+			return nil, err
+		}
+		c.tasks = append(c.tasks[:i], c.tasks[i+1:]...)
+		c.list.SetItems(tasksToItems(c.tasks))
+
+		var cmd tea.Cmd
+		c.list, cmd = c.list.Update(nil)
+		return cmd, nil
+	}
+	return nil, errors.New("index out of range")
 }
 
 func (c *column) Set(i int, t Task) tea.Cmd {
@@ -124,15 +135,12 @@ type moveMsg struct {
 func (c *column) MoveToNext() tea.Cmd {
 	var task Task
 	var ok bool
-	// If nothing is selected, the SelectedItem will return Nil.
 	if task, ok = c.list.SelectedItem().(Task); !ok {
 		return nil
 	}
-	// move item
 	c.list.RemoveItem(c.list.Index())
-	task.status = c.status.Next()
+	task.Status = c.status.Next().String()
 
-	// refresh list
 	var cmd tea.Cmd
 	c.list, cmd = c.list.Update(nil)
 

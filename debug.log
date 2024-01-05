@@ -1,0 +1,10 @@
+debug 2024/01/05 13:38:31 unable to scan row: sql: Scan error on column index 3, name "status": converting driver.Value type string ("todo") to a int: invalid syntax
+debug 2024/01/05 14:58:15 unable to scan row: sql: Scan error on column index 3, name "status": converting driver.Value type string ("todo") to a int: invalid syntax
+debug 2024/01/05 18:58:26 index out of range
+debug 2024/01/05 18:58:54 index out of range
+debug 2024/01/05 18:59:26 index out of range
+debug 2024/01/05 19:00:39 index out of range
+debug 2024/01/05 19:05:03 index out of range
+debug 2024/01/05 19:06:53 index out of range
+debug 2024/01/05 19:09:04 index out of range
+debug 2024/01/05 19:14:38 index out of range

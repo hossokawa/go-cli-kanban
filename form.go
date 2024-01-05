@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jmoiron/sqlx"
 )
 
 type Form struct {
@@ -15,14 +16,17 @@ type Form struct {
 	description textarea.Model
 	col         column
 	index       int
+	db          *sqlx.DB
+	// id          uint
 }
 
 func newDefaultForm() *Form {
-	return NewForm("task name", "")
+	return NewForm(db, "task name", "")
 }
 
-func NewForm(title, description string) *Form {
+func NewForm(db *sqlx.DB, title, description string) *Form {
 	form := Form{
+		db:          db,
 		help:        help.New(),
 		title:       textinput.New(),
 		description: textarea.New(),
@@ -33,8 +37,12 @@ func NewForm(title, description string) *Form {
 	return &form
 }
 
-func (f Form) CreateTask() Task {
-	return Task{f.description.Value(), f.title.Value(), f.col.status}
+func (f Form) CreateTask() (Task, error) {
+	newTask := NewTask(f.col.status.String(), f.title.Value(), f.description.Value())
+	if err := createTask(db, newTask); err != nil {
+		return Task{}, err
+	}
+	return newTask, nil
 }
 
 func (f Form) Init() tea.Cmd {
@@ -51,7 +59,6 @@ func (f Form) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keys.Quit):
 			return f, tea.Quit
-
 		case key.Matches(msg, keys.Back):
 			return board.Update(nil)
 		case key.Matches(msg, keys.Enter):
@@ -60,7 +67,6 @@ func (f Form) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				f.description.Focus()
 				return f, textarea.Blink
 			}
-			// Return the completed form as a message.
 			return board.Update(f)
 		}
 	}

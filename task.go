@@ -1,31 +1,45 @@
 package main
 
+import "github.com/charmbracelet/bubbles/list"
+
 type Task struct {
-	title       string
-	description string
-	status      status
+	ID              uint   `db:"id"`
+	TaskTitle       string `db:"title"`
+	TaskDescription string `db:"description"`
+	Status          string `db:"status"`
 }
 
-func NewTask(status status, title, description string) Task {
-	return Task{status: status, title: title, description: description}
+func NewTask(status, title, description string) Task {
+	return Task{Status: status, TaskTitle: title, TaskDescription: description}
 }
 
 func (t *Task) Next() {
-	if t.status == done {
-		t.status = todo
-	} else {
-		t.status++
+	switch t.Status {
+	case todo.String():
+		t.Status = inProgress.String()
+	case inProgress.String():
+		t.Status = done.String()
+	case done.String():
+		t.Status = todo.String()
 	}
 }
 
 func (t Task) FilterValue() string {
-	return t.title
+	return t.TaskTitle
 }
 
 func (t Task) Title() string {
-	return t.title
+	return t.TaskTitle
 }
 
 func (t Task) Description() string {
-	return t.description
+	return t.TaskDescription
+}
+
+func tasksToItems(tasks []Task) []list.Item {
+	var items []list.Item
+	for _, t := range tasks {
+		items = append(items, t)
+	}
+	return items
 }

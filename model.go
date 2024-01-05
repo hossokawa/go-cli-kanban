@@ -1,10 +1,13 @@
 package main
 
 import (
+	"log"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jmoiron/sqlx"
 )
 
 type Board struct {
@@ -15,10 +18,36 @@ type Board struct {
 	quitting bool
 }
 
-func NewBoard() *Board {
+func NewBoard(db *sqlx.DB) *Board {
+	todos, err := getTasksByStatus(db, todo.String())
+	if err != nil {
+		log.Panic(err)
+	}
+	prog, err := getTasksByStatus(db, inProgress.String())
+	if err != nil {
+		log.Panic(err)
+	}
+	finished, err := getTasksByStatus(db, done.String())
+	if err != nil {
+		log.Panic(err)
+	}
+
+	todoCol := newColumn(tasksToItems(todos), todo, true)
+	todoCol.tasks = todos
+	progCol := newColumn(tasksToItems(prog), inProgress, false)
+	progCol.tasks = prog
+	doneCol := newColumn(tasksToItems(finished), done, false)
+	doneCol.tasks = finished
+
 	help := help.New()
 	help.ShowAll = true
-	return &Board{help: help, focused: todo}
+	return &Board{
+		help:     help,
+		loaded:   true,
+		focused:  todo,
+		cols:     []column{todoCol, progCol, doneCol},
+		quitting: false,
+	}
 }
 
 func (b *Board) Init() tea.Cmd {
@@ -40,7 +69,14 @@ func (b *Board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		b.loaded = true
 		return b, tea.Batch(cmds...)
 	case Form:
-		return b, b.cols[b.focused].Set(msg.index, msg.CreateTask())
+		task, err := msg.CreateTask()
+		if err != nil {
+			log.Fatal(err)
+			return b, nil
+		} else {
+			b.cols[b.focused].Set(msg.index, task)
+		}
+		return b, nil
 	case moveMsg:
 		return b, b.cols[b.focused.Next()].Set(APPEND, msg.Task)
 	case tea.KeyMsg:

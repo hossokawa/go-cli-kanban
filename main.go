@@ -1,13 +1,23 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type status int
+
+const (
+	todo status = iota
+	inProgress
+	done
+)
+
+func (s status) String() string {
+	return [...]string{"todo", "in progress", "done"}[s]
+}
 
 func (s status) Next() status {
 	if s == done {
@@ -27,25 +37,16 @@ const margin = 4
 
 var board *Board
 
-const (
-	todo status = iota
-	inProgress
-	done
-)
-
 func main() {
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 	defer f.Close()
 
-	board = NewBoard()
-	board.initLists()
+	board = NewBoard(db)
 	p := tea.NewProgram(board)
 	if _, err := p.Run(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }
