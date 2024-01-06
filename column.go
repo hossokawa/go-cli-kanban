@@ -92,7 +92,11 @@ func (c *column) DeleteCurrent() (tea.Cmd, error) {
 			return nil, err
 		}
 		c.tasks = append(c.tasks[:i], c.tasks[i+1:]...)
-		c.list.SetItems(tasksToItems(c.tasks))
+		items, err := getTasksByStatus(db, c.status.String())
+		if err != nil {
+			log.Fatal(err)
+		}
+		c.list.SetItems(tasksToItems(items))
 
 		var cmd tea.Cmd
 		c.list, cmd = c.list.Update(nil)
