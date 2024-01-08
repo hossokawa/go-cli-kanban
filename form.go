@@ -75,7 +75,6 @@ func (f Form) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f, cmd
 	}
 	f.description, cmd = f.description.Update(msg)
-	board.Update(nil)
 	return f, cmd
 }
 

@@ -58,6 +58,9 @@ func (c column) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				f := NewForm(db, task.TaskTitle, task.TaskDescription)
 				f.index = c.list.Index()
 				f.col = c
+				if err := updateTask(db, task); err != nil {
+					log.Fatal(err)
+				}
 				return f.Update(nil)
 			}
 		case key.Matches(msg, keys.New):
